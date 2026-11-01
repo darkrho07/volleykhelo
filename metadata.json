@@ -1,0 +1,6 @@
+{
+  "name": "Volley Khelo",
+  "description": "Real-time multiplayer 3D beach volleyball game built with Next.js, Three.js, and Socket.IO featuring server-authoritative physics, 1v1 to 3v3 modes, and arcade spike mechanics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
