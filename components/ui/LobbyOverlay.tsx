@@ -11,6 +11,7 @@ import {
   Send,
   Shield,
   CheckCircle2,
+  Gamepad2,
 } from 'lucide-react';
 import { GameMode, QUICK_EMOTES, TeamId } from '../../shared';
 import { soundManager } from '../../lib/audio';
@@ -18,7 +19,7 @@ import { socketClient } from '../../lib/socketClient';
 import { useGameStore } from '../../store/useGameStore';
 
 export default function LobbyOverlay() {
-  const { roomState, mySocketId, guestId } = useGameStore();
+  const { roomState, mySocketId, guestId, showMobileControls, toggleMobileControls } = useGameStore();
   const [copied, setCopied] = useState(false);
   const [chatText, setChatText] = useState('');
 
@@ -49,54 +50,54 @@ export default function LobbyOverlay() {
   };
 
   return (
-    <div className="fixed inset-0 z-20 pointer-events-none flex flex-col justify-between p-4 md:p-8">
+    <div className="fixed inset-0 z-20 pointer-events-auto lg:pointer-events-none flex flex-col justify-between p-2.5 sm:p-4 md:p-8 overflow-y-auto gap-3">
       {/* Top Room Header Bar */}
-      <div className="pointer-events-auto w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-[#0f172a]/95 border border-slate-700 px-5 py-3.5 shadow-xl">
-        <div className="flex items-center gap-4">
+      <div className="pointer-events-auto w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-2.5 sm:gap-4 rounded-2xl bg-[#0f172a]/95 border border-slate-700 px-3.5 sm:px-5 py-2.5 sm:py-3.5 shadow-xl shrink-0">
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-4">
           <button
             onClick={() => {
               soundManager.playClick();
               socketClient.leaveRoom();
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Leave</span>
           </button>
 
           <div>
-            <div className="text-xs text-slate-400">Room Code</div>
-            <div className="font-mono font-extrabold text-xl text-amber-400 tracking-wider">
+            <div className="text-[10px] sm:text-xs text-slate-400">Room Code</div>
+            <div className="font-mono font-extrabold text-base sm:text-xl text-amber-400 tracking-wider">
               {roomState.code}
             </div>
           </div>
 
           <button
             onClick={handleCopyInvite}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-semibold text-slate-200 transition-colors cursor-pointer"
           >
             {copied ? (
               <>
-                <Check className="w-4 h-4 text-emerald-400" />
+                <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400" />
                 <span className="text-emerald-300">Link Copied!</span>
               </>
             ) : (
               <>
-                <Copy className="w-4 h-4 text-sky-400" />
-                <span>Copy Shareable Link</span>
+                <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-400" />
+                <span>Invite Link</span>
               </>
             )}
           </button>
         </div>
 
         {/* Host Mode & Score Settings */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {(['1v1', '2v2', '3v3'] as GameMode[]).map((m) => (
             <button
               key={m}
               disabled={!isHost}
               onClick={() => socketClient.updateSettings({ mode: m })}
-              className={`px-3 py-1.5 rounded-lg font-mono font-bold text-xs border transition-colors ${
+              className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg font-mono font-bold text-xs border transition-colors ${
                 roomState.settings.mode === m
                   ? 'bg-amber-400 text-slate-950 border-amber-300'
                   : 'bg-slate-900 text-slate-400 border-slate-700'
@@ -106,14 +107,14 @@ export default function LobbyOverlay() {
             </button>
           ))}
 
-          <div className="h-5 w-px bg-slate-700 mx-1" />
+          <div className="h-4 w-px bg-slate-700 mx-0.5" />
 
           {([11, 15, 25] as const).map((pts) => (
             <button
               key={pts}
               disabled={!isHost}
               onClick={() => socketClient.updateSettings({ pointsToWin: pts })}
-              className={`px-2.5 py-1.5 rounded-lg font-mono font-bold text-xs border ${
+              className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-lg font-mono font-bold text-xs border ${
                 roomState.settings.pointsToWin === pts
                   ? 'bg-sky-400 text-slate-950 border-sky-300'
                   : 'bg-slate-900 text-slate-400 border-slate-700'
@@ -126,7 +127,7 @@ export default function LobbyOverlay() {
       </div>
 
       {/* Center Team Selection & Chat Grid */}
-      <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-5 my-auto">
+      <div className="w-full max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 my-auto">
         {/* Team A Column */}
         <TeamRosterCard
           team="A"
@@ -150,9 +151,9 @@ export default function LobbyOverlay() {
         />
 
         {/* Lobby Chat & Emotes Panel */}
-        <div className="pointer-events-auto rounded-2xl bg-[#0f172a]/95 border border-slate-700 p-4 flex flex-col h-80 shadow-xl">
+        <div className="pointer-events-auto md:col-span-2 lg:col-span-1 rounded-2xl bg-[#0f172a]/95 border border-slate-700 p-3.5 sm:p-4 flex flex-col h-56 lg:h-80 shadow-xl">
           <div className="text-xs font-bold text-slate-300 pb-2 border-b border-slate-800 mb-2">
-            Room Chat & Quick Emotes
+            Room Chat &amp; Quick Emotes
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 text-xs">
@@ -210,29 +211,41 @@ export default function LobbyOverlay() {
         </div>
       </div>
 
-      {/* Bottom Action Bar: Ready Up & Host Start Match */}
-      <div className="pointer-events-auto w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-[#0f172a]/95 border border-slate-700 px-6 py-4 shadow-xl">
-        <div className="text-xs text-slate-300">
+      {/* Bottom Action Bar: Ready Up, Touch Controls Toggle & Host Start Match */}
+      <div className="pointer-events-auto w-full max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#0f172a]/95 border border-slate-700 px-4 sm:px-6 py-3 sm:py-4 shadow-xl shrink-0">
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
           <span>
             Each team needs at least <strong>1 player</strong> (Human or Bot) to begin.
           </span>
+          <button
+            type="button"
+            onClick={toggleMobileControls}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border cursor-pointer ${
+              showMobileControls
+                ? 'bg-emerald-400/20 text-emerald-300 border-emerald-400/50'
+                : 'bg-slate-800 text-slate-400 border-slate-700'
+            }`}
+          >
+            <Gamepad2 className="w-3.5 h-3.5" />
+            <span>Touch Controls: {showMobileControls ? 'ON' : 'OFF'}</span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           {!isHost && (
             <button
               onClick={() => {
                 soundManager.playClick();
                 socketClient.toggleReady();
               }}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-display font-bold text-sm cursor-pointer transition-colors ${
+              className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-display font-bold text-sm cursor-pointer transition-colors ${
                 me?.isReady
                   ? 'bg-emerald-500 text-slate-950'
                   : 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-600'
               }`}
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>{me?.isReady ? 'Ready!' : 'Click to Ready Up'}</span>
+              <span>{me?.isReady ? 'Ready!' : 'Tap to Ready Up'}</span>
             </button>
           )}
 
@@ -242,7 +255,7 @@ export default function LobbyOverlay() {
                 soundManager.playClick();
                 socketClient.startMatch();
               }}
-              className="flex items-center gap-2 px-7 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 hover:from-amber-300 hover:to-rose-400 text-slate-950 font-display font-extrabold text-sm tracking-wide shadow-lg cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 hover:from-amber-300 hover:to-rose-400 text-slate-950 font-display font-extrabold text-sm tracking-wide shadow-lg cursor-pointer"
             >
               <Play className="w-4 h-4 fill-slate-950" />
               <span>Start Match Now</span>
@@ -272,10 +285,10 @@ function TeamRosterCard({
   isHost: boolean;
 }) {
   return (
-    <div className="pointer-events-auto rounded-2xl bg-[#0f172a]/95 border border-slate-700 p-4 flex flex-col justify-between h-80 shadow-xl">
+    <div className="pointer-events-auto rounded-2xl bg-[#0f172a]/95 border border-slate-700 p-3.5 sm:p-4 flex flex-col justify-between min-h-[12rem] lg:h-80 shadow-xl">
       <div>
-        <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-800">
-          <h3 className={`font-display font-extrabold text-base ${accentClass.split(' ')[0]}`}>
+        <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-800">
+          <h3 className={`font-display font-extrabold text-sm sm:text-base ${accentClass.split(' ')[0]}`}>
             {title}
           </h3>
           <span className="font-mono text-xs text-slate-400 tabular-nums">
@@ -283,11 +296,11 @@ function TeamRosterCard({
           </span>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-40 lg:max-h-none overflow-y-auto">
           {players.map((p) => (
             <div
               key={p.id}
-              className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800"
+              className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900 border border-slate-800"
             >
               <div className="flex items-center gap-2.5">
                 <span
@@ -322,7 +335,7 @@ function TeamRosterCard({
         </div>
       </div>
 
-      <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
+      <div className="flex items-center gap-2 pt-3 mt-2 border-t border-slate-800">
         <button
           onClick={() => {
             soundManager.playClick();

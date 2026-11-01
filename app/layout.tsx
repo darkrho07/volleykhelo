@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Outfit, Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 
@@ -19,6 +19,14 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ['500', '700'],
   variable: '--font-mono',
 });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+};
 
 export const metadata: Metadata = {
   title: 'Volley Khelo — Real-Time 3D Multiplayer Volleyball',
@@ -48,7 +56,7 @@ export default function RootLayout({
       lang="en"
       className={`${outfit.variable} ${plusJakarta.variable} ${jetbrainsMono.variable} dark`}
     >
-      <body suppressHydrationWarning className="w-screen h-screen overflow-hidden bg-[#0b132b] text-slate-100 antialiased">
+      <body suppressHydrationWarning className="w-screen h-dvh overflow-hidden bg-[#0b132b] text-slate-100 antialiased">
         {children}
       </body>
     </html>

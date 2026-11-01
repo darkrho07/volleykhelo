@@ -12,6 +12,7 @@ import {
   Zap,
   Users,
   X,
+  Smartphone,
 } from 'lucide-react';
 import {
   GameMode,
@@ -36,6 +37,7 @@ export default function TitleScreenOverlay() {
     mouseSensitivity,
     quality,
     theme,
+    showMobileControls,
     setNickname,
     setOutfit,
     setActiveModal,
@@ -44,6 +46,7 @@ export default function TitleScreenOverlay() {
     setMouseSensitivity,
     setQuality,
     setTheme,
+    toggleMobileControls,
   } = useGameStore();
 
   // Create Room form state
@@ -121,14 +124,14 @@ export default function TitleScreenOverlay() {
   };
 
   return (
-    <div className="fixed inset-0 z-10 pointer-events-none flex flex-col justify-between p-6 md:p-10">
+    <div className="fixed inset-0 z-10 pointer-events-none flex flex-col justify-between p-3 sm:p-6 md:p-10 overflow-y-auto">
       {/* Top Bar: Bespoke Brand Lockup + Quick Audio/Settings */}
-      <div className="flex items-start justify-between w-full max-w-7xl mx-auto">
+      <div className="flex items-start justify-between gap-2 w-full max-w-7xl mx-auto">
         <div className="pointer-events-auto flex flex-col">
           {/* Bespoke SVG Title Lockup */}
           <svg
             viewBox="0 0 460 92"
-            className="w-72 md:w-96 h-auto drop-shadow-[0_6px_16px_rgba(0,0,0,0.65)]"
+            className="w-48 sm:w-72 md:w-96 h-auto drop-shadow-[0_6px_16px_rgba(0,0,0,0.65)]"
             aria-label="Volley Khelo"
           >
             <defs>
@@ -175,26 +178,26 @@ export default function TitleScreenOverlay() {
           </svg>
         </div>
 
-        <div className="pointer-events-auto flex items-center gap-2.5">
+        <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           <button
             onClick={() => {
               soundManager.playClick();
               setActiveModal('how_to_play');
             }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0f172a]/90 hover:bg-[#1e293b] border border-slate-700 text-sm font-semibold text-slate-100 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            className="flex items-center gap-1.5 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-[#0f172a]/90 hover:bg-[#1e293b] border border-slate-700 text-xs sm:text-sm font-semibold text-slate-100 transition-colors cursor-pointer whitespace-nowrap shrink-0"
           >
             <HelpCircle className="w-4 h-4 text-amber-400" />
-            <span>How to Play</span>
+            <span className="hidden xs:inline sm:inline">How to Play</span>
           </button>
           <button
             onClick={() => {
               soundManager.playClick();
               setActiveModal('settings');
             }}
-            className="p-2.5 rounded-xl bg-[#0f172a]/90 hover:bg-[#1e293b] border border-slate-700 text-slate-200 transition-colors cursor-pointer"
+            className="p-2 sm:p-2.5 rounded-xl bg-[#0f172a]/90 hover:bg-[#1e293b] border border-slate-700 text-slate-200 transition-colors cursor-pointer"
             title="Settings"
           >
-            <Settings className="w-5 h-5" />
+            <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
           <button
             onClick={() => {
@@ -202,19 +205,23 @@ export default function TitleScreenOverlay() {
               toggleMute();
               soundManager.setMuted(nextMuted);
             }}
-            className="p-2.5 rounded-xl bg-[#0f172a]/90 hover:bg-[#1e293b] border border-slate-700 text-slate-200 transition-colors cursor-pointer"
+            className="p-2 sm:p-2.5 rounded-xl bg-[#0f172a]/90 hover:bg-[#1e293b] border border-slate-700 text-slate-200 transition-colors cursor-pointer"
             title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
           >
-            {isMuted ? <VolumeX className="w-5 h-5 text-rose-400" /> : <Volume2 className="w-5 h-5 text-amber-400" />}
+            {isMuted ? (
+              <VolumeX className="w-4 h-4 sm:w-5 sm:h-5 text-rose-400" />
+            ) : (
+              <Volume2 className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+            )}
           </button>
         </div>
       </div>
 
-      {/* Main Lower-Left Player Setup & Action Panel (Leaves >70% of live 3D beach viewport open!) */}
-      <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row items-end justify-between gap-6">
-        <div className="pointer-events-auto w-full max-w-md rounded-2xl bg-[#0f172a]/95 border border-slate-700/90 p-6 shadow-2xl">
+      {/* Main Lower-Left Player Setup & Action Panel */}
+      <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row items-stretch lg:items-end justify-between gap-3 sm:gap-6 mt-4">
+        <div className="pointer-events-auto w-full max-w-md mx-auto lg:mx-0 rounded-2xl bg-[#0f172a]/95 border border-slate-700/90 p-4 sm:p-6 shadow-2xl">
           {/* Player Identity & Outfit Customizer */}
-          <div className="mb-5">
+          <div className="mb-4 sm:mb-5">
             <label className="block text-xs font-semibold text-slate-400 mb-1.5">
               Athlete Nickname & Jersey Kit
             </label>
@@ -225,10 +232,10 @@ export default function TitleScreenOverlay() {
                 value={nickname}
                 onChange={(e) => setNickname(e.target.value)}
                 placeholder="Enter nickname..."
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-semibold text-sm focus:outline-none focus:border-amber-400"
+                className="w-full px-3.5 py-2 sm:py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white font-semibold text-sm focus:outline-none focus:border-amber-400"
               />
             </div>
-            <div className="flex items-center gap-2 mt-3">
+            <div className="flex items-center justify-between sm:justify-start gap-2 mt-2.5 sm:mt-3">
               {OUTFIT_PALETTES.map((pal) => {
                 const selected = outfitColor === pal.outfit;
                 return (
@@ -241,7 +248,7 @@ export default function TitleScreenOverlay() {
                     }}
                     title={pal.name}
                     style={{ backgroundColor: pal.outfit }}
-                    className={`w-8 h-8 rounded-lg transition-transform cursor-pointer ${
+                    className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg transition-transform cursor-pointer ${
                       selected ? 'ring-2 ring-white scale-110' : 'opacity-75 hover:opacity-100'
                     }`}
                   />
@@ -254,18 +261,18 @@ export default function TitleScreenOverlay() {
           <div className="space-y-2.5">
             <button
               onClick={() => handleInstantSoloMatch('2v2')}
-              className="w-full flex items-center justify-center gap-2.5 py-3.5 px-5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 hover:from-amber-300 hover:to-rose-400 text-slate-950 font-display font-extrabold text-base tracking-wide shadow-lg transition-all cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 py-3 sm:py-3.5 px-4 sm:px-5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 hover:from-amber-300 hover:to-rose-400 text-slate-950 font-display font-extrabold text-sm sm:text-base tracking-wide shadow-lg transition-all cursor-pointer"
             >
-              <Zap className="w-5 h-5 fill-slate-950" />
+              <Zap className="w-5 h-5 fill-slate-950 shrink-0" />
               <span>Play Instant Match (2v2)</span>
             </button>
 
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={handleQuickPlay}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/40 text-sky-200 font-semibold text-xs transition-colors cursor-pointer whitespace-nowrap"
+                className="flex items-center justify-center gap-1 sm:gap-1.5 py-2.5 px-2 sm:px-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/40 text-sky-200 font-semibold text-[11px] sm:text-xs transition-colors cursor-pointer whitespace-nowrap"
               >
-                <Users className="w-4 h-4" />
+                <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
                 <span>Quick Lobby</span>
               </button>
               <button
@@ -273,9 +280,9 @@ export default function TitleScreenOverlay() {
                   soundManager.playClick();
                   setActiveModal('create_room');
                 }}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-semibold text-xs transition-colors cursor-pointer whitespace-nowrap"
+                className="flex items-center justify-center gap-1 sm:gap-1.5 py-2.5 px-2 sm:px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-semibold text-[11px] sm:text-xs transition-colors cursor-pointer whitespace-nowrap"
               >
-                <PlusCircle className="w-4 h-4 text-emerald-400" />
+                <PlusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
                 <span>Create Room</span>
               </button>
               <button
@@ -283,9 +290,9 @@ export default function TitleScreenOverlay() {
                   soundManager.playClick();
                   setActiveModal('join_room');
                 }}
-                className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-semibold text-xs transition-colors cursor-pointer whitespace-nowrap"
+                className="flex items-center justify-center gap-1 sm:gap-1.5 py-2.5 px-2 sm:px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-100 font-semibold text-[11px] sm:text-xs transition-colors cursor-pointer whitespace-nowrap"
               >
-                <LogIn className="w-4 h-4 text-amber-400" />
+                <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
                 <span>Join Room</span>
               </button>
             </div>
@@ -308,26 +315,34 @@ export default function TitleScreenOverlay() {
           </div>
         </div>
 
-        {/* Single flat control-hint line */}
-        <div className="pointer-events-auto px-4 py-2.5 rounded-xl bg-[#0f172a]/90 border border-slate-700/80 text-xs font-medium text-slate-300 tracking-wide">
-          <span className="text-amber-400 font-semibold">WASD / Arrows</span> Move ·{' '}
-          <span className="text-amber-400 font-semibold">Space</span> Jump ·{' '}
-          <span className="text-amber-400 font-semibold">Left Click</span> Instant Hit / Spike / Serve ·{' '}
-          <span className="text-amber-400 font-semibold">E / Right Click</span> Set ·{' '}
-          <span className="text-amber-400 font-semibold">Shift</span> Sprint & Dive ·{' '}
-          <span className="text-amber-400 font-semibold">C</span> Camera
+        {/* Control Hint Line (Responsive for Mobile vs Desktop) */}
+        <div className="pointer-events-auto mx-auto lg:mx-0 px-3.5 py-2 rounded-xl bg-[#0f172a]/90 border border-slate-700/80 text-[11px] sm:text-xs font-medium text-slate-300 tracking-wide text-center lg:text-left">
+          <span className="hidden md:inline">
+            <span className="text-amber-400 font-semibold">WASD / Arrows</span> Move ·{' '}
+            <span className="text-amber-400 font-semibold">Space</span> Jump ·{' '}
+            <span className="text-amber-400 font-semibold">Left Click</span> Instant Hit / Spike / Serve ·{' '}
+            <span className="text-amber-400 font-semibold">E / Right Click</span> Set ·{' '}
+            <span className="text-amber-400 font-semibold">Shift</span> Sprint & Dive ·{' '}
+            <span className="text-amber-400 font-semibold">H</span> Hide HUD
+          </span>
+          <span className="md:hidden flex items-center justify-center gap-1.5">
+            <Smartphone className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span>
+              <strong className="text-amber-400">Mobile Touch Ready:</strong> Virtual Joystick + Jump, Instant Hit/Spike, Set &amp; Shot Aim Pad!
+            </span>
+          </span>
         </div>
       </div>
 
       {/* Create Room Modal */}
       {activeModal === 'create_room' && (
-        <div className="fixed inset-0 z-30 pointer-events-auto bg-black/70 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-30 pointer-events-auto bg-black/70 flex items-center justify-center p-3 sm:p-4">
           <form
             onSubmit={handleCreateRoomSubmit}
-            className="w-full max-w-md rounded-2xl bg-[#0f172a] border border-slate-700 p-6 shadow-2xl space-y-4"
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl bg-[#0f172a] border border-slate-700 p-5 sm:p-6 shadow-2xl space-y-4"
           >
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 className="text-xl font-display font-bold text-white flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-display font-bold text-white flex items-center gap-2">
                 <Gamepad2 className="w-5 h-5 text-amber-400" />
                 <span>Create Match Room</span>
               </h2>
@@ -426,7 +441,7 @@ export default function TitleScreenOverlay() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1">
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
               <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
                 <input
                   type="checkbox"
@@ -452,7 +467,7 @@ export default function TitleScreenOverlay() {
               type="submit"
               className="w-full py-3 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-display font-extrabold text-sm tracking-wide cursor-pointer"
             >
-              Create Room & Open Lobby
+              Create Room &amp; Open Lobby
             </button>
           </form>
         </div>
@@ -460,10 +475,10 @@ export default function TitleScreenOverlay() {
 
       {/* Join Room Modal */}
       {activeModal === 'join_room' && (
-        <div className="fixed inset-0 z-30 pointer-events-auto bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl bg-[#0f172a] border border-slate-700 p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-30 pointer-events-auto bg-black/70 flex items-center justify-center p-3 sm:p-4">
+          <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl bg-[#0f172a] border border-slate-700 p-5 sm:p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 className="text-xl font-display font-bold text-white">Join Room by Code</h2>
+              <h2 className="text-lg sm:text-xl font-display font-bold text-white">Join Room by Code</h2>
               <button
                 type="button"
                 onClick={() => setActiveModal('none')}
@@ -480,7 +495,7 @@ export default function TitleScreenOverlay() {
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                 placeholder="6-CHAR CODE (e.g. VK7X92)"
-                className="flex-1 px-4 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono font-bold tracking-widest uppercase text-sm focus:outline-none focus:border-amber-400"
+                className="flex-1 px-3.5 py-3 rounded-xl bg-slate-900 border border-slate-700 text-white font-mono font-bold tracking-widest uppercase text-sm focus:outline-none focus:border-amber-400"
               />
               <button
                 type="submit"
@@ -494,7 +509,7 @@ export default function TitleScreenOverlay() {
               <div className="text-xs font-semibold text-slate-400 mb-2">Open Public Rooms</div>
               {publicRooms.length === 0 ? (
                 <div className="text-xs text-slate-500 py-4 text-center border border-dashed border-slate-800 rounded-xl">
-                  No open public rooms right now. Click &ldquo;Quick Lobby&rdquo; or create one!
+                  No open public rooms right now. Tap &ldquo;Quick Lobby&rdquo; or create one!
                 </div>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -529,10 +544,10 @@ export default function TitleScreenOverlay() {
 
       {/* How to Play Modal */}
       {activeModal === 'how_to_play' && (
-        <div className="fixed inset-0 z-30 pointer-events-auto bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-[#0f172a] border border-slate-700 p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-30 pointer-events-auto bg-black/70 flex items-center justify-center p-3 sm:p-4">
+          <div className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-2xl bg-[#0f172a] border border-slate-700 p-5 sm:p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 className="text-xl font-display font-bold text-white">How to Play Volley Khelo</h2>
+              <h2 className="text-lg sm:text-xl font-display font-bold text-white">How to Play Volley Khelo</h2>
               <button
                 type="button"
                 onClick={() => setActiveModal('none')}
@@ -542,27 +557,24 @@ export default function TitleScreenOverlay() {
               </button>
             </div>
 
-            <div className="space-y-3 text-sm text-slate-300 leading-relaxed">
+            <div className="space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
               <p>
-                <strong className="text-amber-400">1. Rally Scoring & Win by 2:</strong> Every rally awards a point! First team to 15 points (configurable 11/15/25) with a 2-point lead wins the set.
+                <strong className="text-amber-400">1. Rally Scoring &amp; Win by 2:</strong> Every rally awards a point! First team to 15 points (configurable 11/15/25) with a 2-point lead wins the set.
               </p>
               <p>
                 <strong className="text-sky-400">2. 3-Touch Combination (Bump → Set → Spike):</strong> Your team gets up to <strong>3 touches</strong> to send the ball over the net. In 2v2 and 3v3, the same player cannot touch the ball twice in a row.
               </p>
               <p>
-                <strong className="text-emerald-400">3. Controls & Timing:</strong>
+                <strong className="text-emerald-400">3. Desktop &amp; Mobile Touch Controls:</strong>
               </p>
               <ul className="space-y-1.5 text-xs bg-slate-900 p-3.5 rounded-xl border border-slate-800">
-                <li>• <strong>Move:</strong> WASD or Arrow Keys (watch the orange landing ring on the sand!)</li>
-                <li>• <strong>Jump:</strong> Spacebar</li>
-                <li>• <strong>Bump / Pass:</strong> Left Click when the ball is within your reach sphere</li>
-                <li>• <strong>Charged Spike / Jump Serve:</strong> Hold Left Click + Release while airborne</li>
-                <li>• <strong>High Set (Pass to Teammate):</strong> Press <strong>E</strong></li>
-                <li>• <strong>Sprint / Sand Dive:</strong> Hold <strong>Shift</strong> (Shift + Left Click to dive for a low ball!)</li>
+                <li>• <strong>Move:</strong> WASD / Arrow Keys on Desktop, or Left Virtual Thumbstick on Mobile</li>
+                <li>• <strong>Jump:</strong> Spacebar or <strong>JUMP</strong> button</li>
+                <li>• <strong>Instant Hit / Spike / Serve:</strong> Left Click or <strong>HIT / SPIKE</strong> button when the ball is inside your green reach ring</li>
+                <li>• <strong>High Set (Pass to Teammate):</strong> Press <strong>E / Right Click</strong> or tap <strong>SET PASS</strong></li>
+                <li>• <strong>Sprint / Sand Dive:</strong> Hold <strong>Shift</strong> or toggle <strong>SPRINT ON</strong> / tap <strong>SAND DIVE</strong></li>
+                <li>• <strong>Hide All HUDs:</strong> Press <strong>H</strong> or tap the <strong>HUD</strong> toggle button</li>
               </ul>
-              <p className="text-xs text-slate-400">
-                <strong>Multiplayer Testing Tip:</strong> Open a second browser tab and join using the 6-character Room Code or shareable URL (`/room/CODE`) to test real-time server-authoritative multiplayer!
-              </p>
             </div>
 
             <button
@@ -577,10 +589,10 @@ export default function TitleScreenOverlay() {
 
       {/* Settings Modal */}
       {activeModal === 'settings' && (
-        <div className="fixed inset-0 z-30 pointer-events-auto bg-black/70 flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl bg-[#0f172a] border border-slate-700 p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-30 pointer-events-auto bg-black/70 flex items-center justify-center p-3 sm:p-4">
+          <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl bg-[#0f172a] border border-slate-700 p-5 sm:p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h2 className="text-xl font-display font-bold text-white">Game Settings</h2>
+              <h2 className="text-lg sm:text-xl font-display font-bold text-white">Game Settings</h2>
               <button
                 type="button"
                 onClick={() => setActiveModal('none')}
@@ -591,6 +603,26 @@ export default function TitleScreenOverlay() {
             </div>
 
             <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800">
+                <div>
+                  <div className="text-xs font-bold text-white">On-Screen Mobile Touch Controls</div>
+                  <div className="text-[11px] text-slate-400">
+                    Virtual thumbstick, Jump, Hit/Spike, Set &amp; Aim Pad
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleMobileControls}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
+                    showMobileControls
+                      ? 'bg-emerald-400 text-slate-950'
+                      : 'bg-slate-800 text-slate-300 border border-slate-700'
+                  }`}
+                >
+                  {showMobileControls ? 'ENABLED' : 'OFF'}
+                </button>
+              </div>
+
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
                   Sound Effects Volume ({Math.round(sfxVolume * 100)}%)
@@ -631,7 +663,7 @@ export default function TitleScreenOverlay() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  3rd-Person Mouse Aim Sensitivity ({mouseSensitivity.toFixed(1)}x)
+                  Mouse Aim Sensitivity ({mouseSensitivity.toFixed(1)}x)
                 </label>
                 <input
                   type="range"

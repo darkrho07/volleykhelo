@@ -15,14 +15,14 @@ export default function PostMatchModal() {
   const mvp = players.find((p) => p.id === roomState.mvpPlayerId) || players[0];
 
   return (
-    <div className="fixed inset-0 z-30 bg-black/75 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl rounded-2xl bg-[#0f172a] border border-slate-700 p-6 md:p-8 shadow-2xl space-y-6">
+    <div className="fixed inset-0 z-30 bg-black/75 flex items-center justify-center p-3 sm:p-4">
+      <div className="w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-2xl bg-[#0f172a] border border-slate-700 p-4 sm:p-6 md:p-8 shadow-2xl space-y-4 sm:space-y-6">
         {/* Winner Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-400/20 border border-amber-400/40 text-amber-400 mb-1">
-            <Trophy className="w-8 h-8" />
+        <div className="text-center space-y-1.5 sm:space-y-2">
+          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-amber-400/20 border border-amber-400/40 text-amber-400 mb-1">
+            <Trophy className="w-6 h-6 sm:w-8 sm:h-8" />
           </div>
-          <h2 className="text-3xl md:text-4xl font-display font-black text-white">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-display font-black text-white">
             TEAM {winner} WINS THE MATCH!
           </h2>
           <p className="text-sm text-slate-300 font-mono tabular-nums">

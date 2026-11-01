@@ -42,7 +42,10 @@ interface GameStoreState {
   isDockCollapsed: boolean;
 
   // Mobile virtual input state
+  showMobileControls: boolean;
   mobileMove: { x: number; z: number };
+  mobileSprintHeld: boolean;
+  mobileAim: { x: number; y: number };
   mobileActionQueue: {
     jump: boolean;
     action: 'bump' | 'set' | 'spike' | 'serve' | null;
@@ -69,7 +72,11 @@ interface GameStoreState {
   toggleMute: () => void;
   toggleMusic: () => void;
   toggleDock: () => void;
+  setShowMobileControls: (show: boolean) => void;
+  toggleMobileControls: () => void;
   setMobileMove: (x: number, z: number) => void;
+  setMobileSprintHeld: (held: boolean) => void;
+  setMobileAim: (x: number, y: number) => void;
   triggerMobileAction: (payload: Partial<GameStoreState['mobileActionQueue']>) => void;
   consumeMobileAction: () => GameStoreState['mobileActionQueue'];
 }
@@ -99,12 +106,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   isMusicEnabled: false,
   isDockCollapsed: false,
 
+  showMobileControls: false,
   mobileMove: { x: 0, z: 0 },
+  mobileSprintHeld: false,
+  mobileAim: { x: 0, y: 0.65 },
   mobileActionQueue: {
     jump: false,
     action: null,
     sprint: false,
-    charge: 0.7,
+    charge: 0.88,
   },
 
   initIdentity: () => {
@@ -117,11 +127,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const savedName = localStorage.getItem('vk_nickname') || `Player${Math.floor(10 + Math.random() * 89)}`;
     const savedOutfit = localStorage.getItem('vk_outfit') || OUTFIT_PALETTES[0].outfit;
     const savedVisor = localStorage.getItem('vk_visor') || OUTFIT_PALETTES[0].visor;
+    const isTouchOrSmall =
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      window.matchMedia('(pointer: coarse)').matches ||
+      window.innerWidth < 900;
     set({
       guestId: gid,
       nickname: savedName,
       outfitColor: savedOutfit,
       visorColor: savedVisor,
+      showMobileControls: isTouchOrSmall,
     });
   },
 
@@ -185,7 +201,11 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   toggleMusic: () => set((s) => ({ isMusicEnabled: !s.isMusicEnabled })),
   toggleDock: () => set((s) => ({ isDockCollapsed: !s.isDockCollapsed })),
 
+  setShowMobileControls: (showMobileControls) => set({ showMobileControls }),
+  toggleMobileControls: () => set((s) => ({ showMobileControls: !s.showMobileControls })),
   setMobileMove: (x, z) => set({ mobileMove: { x, z } }),
+  setMobileSprintHeld: (mobileSprintHeld) => set({ mobileSprintHeld }),
+  setMobileAim: (x, y) => set({ mobileAim: { x, y } }),
   triggerMobileAction: (payload) =>
     set((s) => ({
       mobileActionQueue: {
@@ -201,7 +221,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
           jump: false,
           action: null,
           sprint: false,
-          charge: 0.7,
+          charge: 0.88,
         },
       });
     }

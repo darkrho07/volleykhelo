@@ -369,6 +369,10 @@ export default function VolleyCanvas() {
     const onMouseDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target && target !== renderer.domElement) return;
+      // Ignore synthetic mouse events generated from touch screens when mobile controls are active
+      if (useGameStore.getState().showMobileControls && ('ontouchstart' in window || navigator.maxTouchPoints > 0)) {
+        return;
+      }
 
       if (e.button === 0) {
         // Instant hit / spike / serve on Left Click press — no release delay!
@@ -548,7 +552,8 @@ export default function VolleyCanvas() {
           (heldKeys.has('KeyA') || heldKeys.has('ArrowLeft') ? 1 : 0);
 
         // Merge mobile touch joystick if active
-        if (Math.hypot(store.mobileMove.x, store.mobileMove.z) > 0.05) {
+        const isUsingMobileStick = Math.hypot(store.mobileMove.x, store.mobileMove.z) > 0.05;
+        if (isUsingMobileStick) {
           rawD = store.mobileMove.x;
           rawW = -store.mobileMove.z;
         }
@@ -558,7 +563,7 @@ export default function VolleyCanvas() {
 
         if (store.cameraMode === 'follow' && me) {
           // True Third-Person Controls:
-          // W = Forward toward net, S = Backpedal, A = Strafe Left, D = Strafe Right
+          // W / Joystick Up = Forward toward net, S / Joystick Down = Backpedal, A/D = Strafe Left/Right
           const forwardSign = isTeamB ? -1 : 1;
           moveX = rawW * forwardSign;
           moveZ = rawD * forwardSign;
@@ -571,17 +576,32 @@ export default function VolleyCanvas() {
         const mobAct = store.consumeMobileAction();
         const jump = justPressedJump || mobAct.jump;
         const action = justPressedAction || mobAct.action;
-        const sprint = heldKeys.has('ShiftLeft') || heldKeys.has('ShiftRight') || mobAct.sprint;
+        const sprint =
+          heldKeys.has('ShiftLeft') ||
+          heldKeys.has('ShiftRight') ||
+          store.mobileSprintHeld ||
+          mobAct.sprint;
         const charge = justReleasedCharge > 0 ? justReleasedCharge : mobAct.charge;
 
         const forwardSign = isTeamB ? -1 : 1;
-        // In 3rd person, mouse X steers shot aim left/right relative to the player's view of the net,
-        // and mouse Y controls deep (+1) vs short drop-shot (-0.3) placement!
-        const aimX = forwardSign * (0.65 + clampAim(mouseAimNDC.y) * 0.35);
+
+        // Effective Aim: If mobile controls are visible, combine mobileAim selector + joystick tilt
+        const effectiveAimLateral = store.showMobileControls
+          ? clampAim(store.mobileAim.x + (isUsingMobileStick ? store.mobileMove.x * 0.45 : 0))
+          : clampAim(mouseAimNDC.x);
+        const effectiveAimDepth = store.showMobileControls
+          ? clampAim(store.mobileAim.y)
+          : clampAim(mouseAimNDC.y);
+
+        if (store.showMobileControls) {
+          lookYawOffset = effectiveAimLateral * 0.58;
+        }
+
+        const aimX = forwardSign * (0.65 + effectiveAimDepth * 0.35);
         const aimZ =
           store.cameraMode === 'follow'
-            ? clampAim(mouseAimNDC.x * forwardSign * 0.95 + moveZ * 0.35)
-            : clampAim(mouseAimNDC.x * 1.15 + moveZ * 0.45);
+            ? clampAim(effectiveAimLateral * forwardSign * 0.95 + moveZ * 0.35)
+            : clampAim(effectiveAimLateral * 1.15 + moveZ * 0.45);
 
         socketClient.sendInput({
           moveX,
@@ -692,8 +712,9 @@ export default function VolleyCanvas() {
           const baseYaw = me.team === 'A' ? 0 : Math.PI;
           aimIndicatorGroup.rotation.y = baseYaw - lookYawOffset;
 
-          // Keep fixed, steady FOV (no zoom bobbing on sprint or jump)
-          const desiredFov = store.cameraMode === 'follow' ? 52 : 48;
+          // Responsive FOV for portrait mobile vs desktop/landscape (fixed steady value, zero bobbing)
+          const isPortrait = camera.aspect < 1.0;
+          const desiredFov = store.cameraMode === 'follow' ? (isPortrait ? 64 : 52) : isPortrait ? 60 : 48;
           if (Math.abs(camera.fov - desiredFov) > 0.1) {
             camera.fov = desiredFov;
             camera.updateProjectionMatrix();
@@ -702,8 +723,8 @@ export default function VolleyCanvas() {
           if (store.cameraMode === 'follow') {
             // STEADY THIRD-PERSON CAMERA:
             // Follows smoothly behind the player at a fixed height, completely independent of mouse movement or jump/ball bobbing.
-            const camDistBehind = 5.8;
-            const camHeight = 3.45;
+            const camDistBehind = isPortrait ? 7.2 : 5.8;
+            const camHeight = isPortrait ? 4.1 : 3.45;
 
             _camTargetPos.set(
               px - forwardSign * camDistBehind,
@@ -718,11 +739,11 @@ export default function VolleyCanvas() {
               pz * 0.45
             );
           } else if (store.cameraMode === 'side') {
-            _camTargetPos.set(0, 10.5, 21.0);
+            _camTargetPos.set(0, isPortrait ? 13.5 : 10.5, isPortrait ? 26.0 : 21.0);
             _camLookAt.set(0, 1.6, 0);
           } else {
             // Broadcast angle (steady elevated sideline panorama)
-            _camTargetPos.set(0, 15.0, 24.0);
+            _camTargetPos.set(0, isPortrait ? 18.0 : 15.0, isPortrait ? 29.0 : 24.0);
             _camLookAt.set(0, 1.5, 0);
           }
         }
