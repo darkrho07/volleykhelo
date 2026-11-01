@@ -686,62 +686,50 @@ export default function VolleyCanvas() {
           const haloScale = inReach ? 1.05 + Math.sin(elapsedTime * 18) * 0.05 : 1.0;
           reachHaloMesh.scale.setScalar(haloScale);
 
-          // Position Aim Arrow in front of player pointing toward aimed trajectory
+          // Position Aim Arrow on the sand in front of player pointing toward aimed shot direction
           aimIndicatorGroup.visible = store.cameraMode === 'follow';
           aimIndicatorGroup.position.set(px + forwardSign * 1.15, 0.04, pz);
           const baseYaw = me.team === 'A' ? 0 : Math.PI;
           aimIndicatorGroup.rotation.y = baseYaw - lookYawOffset;
 
-          // Dynamic FOV boost when sprinting, diving, or jumping to spike in 3rd-person
-          const speedXZ = Math.hypot(me.vel.x, me.vel.z);
-          const desiredFov =
-            store.cameraMode === 'follow'
-              ? 54 + (speedXZ > 8 || py > 0.4 ? 5.5 : 0) + (activeChargeState.isCharging ? 3.5 : 0)
-              : 48;
+          // Keep fixed, steady FOV (no zoom bobbing on sprint or jump)
+          const desiredFov = store.cameraMode === 'follow' ? 52 : 48;
           if (Math.abs(camera.fov - desiredFov) > 0.1) {
-            camera.fov = THREE.MathUtils.lerp(camera.fov, desiredFov, dt * 8);
+            camera.fov = desiredFov;
             camera.updateProjectionMatrix();
           }
 
           if (store.cameraMode === 'follow') {
-            // TRUE THIRD-PERSON ACTION CAMERA (Behind the athlete, looking over shoulder toward net & ball)
-            const camDistBehind = 5.4;
-            const camHeight = 2.85 + py * 0.7;
-            const lateralShift = Math.sin(lookYawOffset) * 1.65 * forwardSign;
+            // STEADY THIRD-PERSON CAMERA:
+            // Follows smoothly behind the player at a fixed height, completely independent of mouse movement or jump/ball bobbing.
+            const camDistBehind = 5.8;
+            const camHeight = 3.45;
 
             _camTargetPos.set(
               px - forwardSign * camDistBehind,
               camHeight,
-              pz - lateralShift * 0.45
+              pz * 0.78
             );
 
-            // Look target blends the court ahead of the player + the live ball height + mouse pitch/yaw
-            const lookAheadX = px + forwardSign * 9.5;
-            const lookAheadZ = pz * 0.55 + Math.sin(lookYawOffset) * 5.8 * forwardSign;
-            const ballTrackY = Math.max(1.55, Math.min(4.8, ballRig.ballMesh.position.y * 0.55 + 1.0));
-
+            // Steady forward look-at point across the net (no mouse movement or vertical ball bobbing)
             _camLookAt.set(
-              THREE.MathUtils.lerp(lookAheadX, ballRig.ballMesh.position.x, 0.38),
-              ballTrackY + lookPitchOffset * 1.8,
-              THREE.MathUtils.lerp(lookAheadZ, ballRig.ballMesh.position.z, 0.4)
+              px * 0.35 + forwardSign * 6.5,
+              1.75,
+              pz * 0.45
             );
           } else if (store.cameraMode === 'side') {
-            _camTargetPos.set(ballRig.ballMesh.position.x * 0.3, 10.2, 20.5);
-            _camLookAt.set(ballRig.ballMesh.position.x * 0.4, 1.6, 0);
+            _camTargetPos.set(0, 10.5, 21.0);
+            _camLookAt.set(0, 1.6, 0);
           } else {
-            // Broadcast angle (elevated sideline panorama)
-            _camTargetPos.set(ballRig.ballMesh.position.x * 0.25, 14.8, 23.5);
-            _camLookAt.set(ballRig.ballMesh.position.x * 0.32, 1.5, 0);
+            // Broadcast angle (steady elevated sideline panorama)
+            _camTargetPos.set(0, 15.0, 24.0);
+            _camLookAt.set(0, 1.5, 0);
           }
         }
       } else if (room && room.phase === 'lobby') {
-        // Lobby preview: frame behind Team A's player in third-person perspective
+        // Lobby preview: steady third-person camera behind player
         syncPlayerModels(room.players, myId, null, dt);
-        ballRig.ballMesh.position.set(
-          0,
-          BALL_RADIUS + Math.abs(Math.sin(elapsedTime * 3)) * 0.6,
-          0
-        );
+        ballRig.ballMesh.position.set(0, BALL_RADIUS + 0.4, 0);
         ballRig.shadowMesh.position.set(0, 0.022, 0);
         ballRig.landingReticle.visible = false;
         aimIndicatorGroup.visible = false;
@@ -750,14 +738,14 @@ export default function VolleyCanvas() {
         const me = room.players.find((p) => p.id === myId) || room.players[0];
         if (me) {
           const sign = me.team === 'A' ? 1 : -1;
-          _camTargetPos.set(me.pos.x - sign * 4.8, 2.8, me.pos.z + Math.sin(elapsedTime * 0.4) * 1.2);
+          _camTargetPos.set(me.pos.x - sign * 5.5, 3.2, me.pos.z * 0.8);
           _camLookAt.set(0, 1.6, 0);
         } else {
-          _camTargetPos.set(-10.5, 4.2, Math.sin(elapsedTime * 0.3) * 3.5);
+          _camTargetPos.set(-12.0, 4.2, 0);
           _camLookAt.set(0, 1.6, 0);
         }
       } else {
-        // Title Screen Live Exhibition Rally framed in dynamic Third-Person over-the-shoulder perspective!
+        // Title Screen Live Exhibition Rally with steady Third-Person framing
         aimIndicatorGroup.visible = false;
         reachHaloMesh.visible = false;
 
@@ -785,25 +773,13 @@ export default function VolleyCanvas() {
 
         syncPlayerModels(demoPlayers, null, null, dt);
 
-        // Hero Third-Person camera behind Team A player looking over their shoulder across the net
-        _camTargetPos.set(
-          demoPlayers[0].pos.x - 4.4,
-          2.65 + Math.sin(elapsedTime * 0.5) * 0.25,
-          demoPlayers[0].pos.z + Math.cos(elapsedTime * 0.35) * 1.2
-        );
-        _camLookAt.set(bx * 0.5, 1.85, bz * 0.4);
+        _camTargetPos.set(-9.8, 3.4, 1.2);
+        _camLookAt.set(0, 1.75, 0);
       }
 
-      // Apply decaying camera shake on spikes
-      if (cameraShakeIntensity > 0.005) {
-        _camTargetPos.x += (Math.random() - 0.5) * cameraShakeIntensity;
-        _camTargetPos.y += (Math.random() - 0.5) * cameraShakeIntensity;
-        cameraShakeIntensity *= Math.exp(-dt * 10);
-      } else {
-        cameraShakeIntensity = 0;
-      }
+      cameraShakeIntensity = 0;
 
-      const camDamp = 1 - Math.exp(-(store.cameraMode === 'follow' ? 11.5 : 6.5) * dt);
+      const camDamp = 1 - Math.exp(-8.0 * dt);
       camera.position.lerp(_camTargetPos, camDamp);
       _currentLookAt.lerp(_camLookAt, camDamp);
       camera.lookAt(_currentLookAt);
