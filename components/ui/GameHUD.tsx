@@ -43,6 +43,7 @@ export default function GameHUD() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [chargeUI, setChargeUI] = useState(0);
+  const [inReachUI, setInReachUI] = useState(false);
   const joystickRef = useRef<HTMLDivElement | null>(null);
   const [joyKnob, setJoyKnob] = useState({ x: 0, y: 0 });
 
@@ -53,9 +54,12 @@ export default function GameHUD() {
       } else if (chargeUI !== 0) {
         setChargeUI(0);
       }
-    }, 50);
+      if (activeChargeState.ballInReach !== inReachUI) {
+        setInReachUI(activeChargeState.ballInReach);
+      }
+    }, 45);
     return () => clearInterval(id);
-  }, [chargeUI]);
+  }, [chargeUI, inReachUI]);
 
   if (!roomState || !latestSnapshot) return null;
 
@@ -229,8 +233,32 @@ export default function GameHUD() {
         </div>
       </div>
 
-      {/* Center Callouts (Countdown / Point Banner / Disconnect Pause / Serve Prompt) */}
+      {/* Center Callouts & 3rd-Person Aim Reticle */}
       <div className="my-auto flex flex-col items-center justify-center pointer-events-none">
+        {cameraMode === 'follow' &&
+          (latestSnapshot.phase === 'playing' || latestSnapshot.phase === 'serve_wait') && (
+            <div className="mb-3 flex flex-col items-center">
+              <div
+                className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-transform duration-75 ${
+                  inReachUI
+                    ? 'border-emerald-400 scale-125 bg-emerald-400/20'
+                    : 'border-white/45 scale-100'
+                }`}
+              >
+                <div
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    inReachUI ? 'bg-emerald-300' : 'bg-amber-400/80'
+                  }`}
+                />
+              </div>
+              {inReachUI && (
+                <span className="mt-1 px-2 py-0.5 rounded bg-emerald-500 text-slate-950 font-mono font-extrabold text-[10px] uppercase tracking-wider shadow">
+                  STRIKE NOW! (CLICK / E)
+                </span>
+              )}
+            </div>
+          )}
+
         {latestSnapshot.phase === 'countdown' && (
           <div className="px-8 py-4 rounded-2xl bg-[#0f172a]/95 border border-amber-400/60 text-center shadow-2xl">
             <div className="text-xs font-bold text-amber-300 uppercase tracking-widest mb-1">
@@ -255,7 +283,7 @@ export default function GameHUD() {
 
         {latestSnapshot.phase === 'serve_wait' && latestSnapshot.servingPlayerId === mySocketId && (
           <div className="px-5 py-2.5 rounded-xl bg-amber-400 text-slate-950 font-display font-black text-sm shadow-xl">
-            YOUR SERVE! Press Space + Click (or Hold Click for Jump Serve)
+            YOUR SERVE! Aim with Mouse · Press Space + Click (or Hold Click for Jump Serve)
           </div>
         )}
 
@@ -427,20 +455,26 @@ export default function GameHUD() {
 
           {!isDockCollapsed && (
             <div className="flex flex-wrap items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-[#0f172a]/95 border border-slate-700 shadow-2xl">
-              {/* Camera View Selector */}
-              <div className="flex items-center gap-1">
+              {/* Camera View Selector (3rd Person Default + C Shortcut) */}
+              <div className="flex items-center gap-1" title="Press C to cycle Camera View">
                 <Camera className="w-3.5 h-3.5 text-amber-400 mr-1" />
-                {(['broadcast', 'follow', 'side'] as const).map((cm) => (
+                {(
+                  [
+                    { id: 'follow', label: '3rd Person' },
+                    { id: 'broadcast', label: 'Broadcast' },
+                    { id: 'side', label: 'Sideline' },
+                  ] as const
+                ).map((cm) => (
                   <button
-                    key={cm}
-                    onClick={() => setCameraMode(cm)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize cursor-pointer ${
-                      cameraMode === cm
+                    key={cm.id}
+                    onClick={() => setCameraMode(cm.id)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold cursor-pointer ${
+                      cameraMode === cm.id
                         ? 'bg-amber-400 text-slate-950'
                         : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                     }`}
                   >
-                    {cm}
+                    {cm.label}
                   </button>
                 ))}
               </div>

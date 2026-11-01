@@ -33,6 +33,7 @@ export default function TitleScreenOverlay() {
     isMuted,
     sfxVolume,
     musicVolume,
+    mouseSensitivity,
     quality,
     theme,
     setNickname,
@@ -40,6 +41,7 @@ export default function TitleScreenOverlay() {
     setActiveModal,
     toggleMute,
     setVolumes,
+    setMouseSensitivity,
     setQuality,
     setTheme,
   } = useGameStore();
@@ -623,6 +625,21 @@ export default function TitleScreenOverlay() {
                     setVolumes(sfxVolume, v);
                     soundManager.setVolumes(sfxVolume, v);
                   }}
+                  className="w-full accent-amber-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  3rd-Person Mouse Aim Sensitivity ({mouseSensitivity.toFixed(1)}x)
+                </label>
+                <input
+                  type="range"
+                  min={0.4}
+                  max={2.0}
+                  step={0.1}
+                  value={mouseSensitivity}
+                  onChange={(e) => setMouseSensitivity(parseFloat(e.target.value))}
                   className="w-full accent-amber-400"
                 />
               </div>

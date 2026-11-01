@@ -32,6 +32,7 @@ interface GameStoreState {
   // UI & Settings
   activeModal: ScreenModal;
   cameraMode: CameraViewMode;
+  mouseSensitivity: number;
   theme: AtmosphereTheme;
   quality: GraphicsQuality;
   sfxVolume: number;
@@ -61,6 +62,7 @@ interface GameStoreState {
   setErrorToast: (msg: string | null) => void;
   setActiveModal: (modal: ScreenModal) => void;
   setCameraMode: (mode: CameraViewMode) => void;
+  setMouseSensitivity: (sens: number) => void;
   setTheme: (theme: AtmosphereTheme) => void;
   setQuality: (q: GraphicsQuality) => void;
   setVolumes: (sfx: number, music: number) => void;
@@ -87,7 +89,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   errorToast: null,
 
   activeModal: 'none',
-  cameraMode: 'broadcast',
+  cameraMode: 'follow',
+  mouseSensitivity: 1.0,
   theme: 'sunset',
   quality: 'high',
   sfxVolume: 0.75,
@@ -174,6 +177,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
   setActiveModal: (activeModal) => set({ activeModal }),
   setCameraMode: (cameraMode) => set({ cameraMode }),
+  setMouseSensitivity: (mouseSensitivity) => set({ mouseSensitivity }),
   setTheme: (theme) => set({ theme }),
   setQuality: (quality) => set({ quality }),
   setVolumes: (sfxVolume, musicVolume) => set({ sfxVolume, musicVolume }),

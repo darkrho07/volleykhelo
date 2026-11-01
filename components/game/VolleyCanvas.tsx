@@ -8,6 +8,7 @@ import {
   HitType,
   NET_HEIGHT_MENS,
   OUTFIT_PALETTES,
+  PLAYER_REACH_RADIUS,
   PlayerState,
   QUICK_EMOTES,
 } from '../../shared';
@@ -30,10 +31,12 @@ const _camTargetPos = new THREE.Vector3();
 const _camLookAt = new THREE.Vector3();
 const _currentLookAt = new THREE.Vector3(0, 1.5, 0);
 
-// Exported ref for charge bar UI readout without causing React re-renders on every frame
+// Exported ref for charge & third-person reach state UI readout without causing React re-renders
 export const activeChargeState = {
   isCharging: false,
   chargeValue: 0,
+  ballInReach: false,
+  aimLateral: 0,
 };
 
 export default function VolleyCanvas() {
@@ -71,13 +74,13 @@ export default function VolleyCanvas() {
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
-      48,
+      54,
       window.innerWidth / window.innerHeight,
       0.1,
       220
     );
-    camera.position.set(0, 11.5, 17.5);
-    camera.lookAt(0, 1.4, 0);
+    camera.position.set(-9.5, 3.2, 0);
+    camera.lookAt(0, 1.8, 0);
 
     // 2. Studio Environment Map via RoomEnvironment + PMREMGenerator
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -143,7 +146,8 @@ export default function VolleyCanvas() {
       }
 
       if (!isSoftwareGl) {
-        const pr = quality === 'low' ? 1 : quality === 'medium' ? 1.35 : Math.min(window.devicePixelRatio, 2);
+        const pr =
+          quality === 'low' ? 1 : quality === 'medium' ? 1.35 : Math.min(window.devicePixelRatio, 2);
         renderer.setPixelRatio(pr);
         renderer.shadowMap.enabled = quality !== 'low';
       }
@@ -152,7 +156,7 @@ export default function VolleyCanvas() {
 
     const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
 
-    // 4. Build Arena, Net, Volleyball, and Effects Manager
+    // 4. Build Arena, Net, Volleyball, Effects, and 3rd-Person Aim & Reach Indicators
     const arena = buildBeachArena(maxAnisotropy);
     scene.add(arena.group);
 
@@ -164,6 +168,49 @@ export default function VolleyCanvas() {
 
     const effects = new EffectsManager();
     scene.add(effects.group);
+
+    // 3rd-Person Aim Arrow & Target Reticle on Opponent Court
+    const aimIndicatorGroup = new THREE.Group();
+    const arrowShape = new THREE.Shape();
+    arrowShape.moveTo(0, 0.55);
+    arrowShape.lineTo(0.28, 0.05);
+    arrowShape.lineTo(0.1, 0.05);
+    arrowShape.lineTo(0.1, -0.45);
+    arrowShape.lineTo(-0.1, -0.45);
+    arrowShape.lineTo(-0.1, 0.05);
+    arrowShape.lineTo(-0.28, 0.05);
+    arrowShape.closePath();
+
+    const arrowGeo = new THREE.ShapeGeometry(arrowShape);
+    arrowGeo.rotateX(-Math.PI / 2);
+    arrowGeo.rotateY(-Math.PI / 2); // Point along +X in local space
+    const arrowMat = new THREE.MeshBasicMaterial({
+      color: 0xfacc15,
+      transparent: true,
+      opacity: 0.72,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const aimArrowMesh = new THREE.Mesh(arrowGeo, arrowMat);
+    aimArrowMesh.position.y = 0.035;
+    aimIndicatorGroup.add(aimArrowMesh);
+    aimIndicatorGroup.visible = false;
+    scene.add(aimIndicatorGroup);
+
+    // 3rd-Person Reach Halo Ring around Local Athlete (glows emerald when ball is in strike range!)
+    const reachHaloGeo = new THREE.RingGeometry(PLAYER_REACH_RADIUS - 0.12, PLAYER_REACH_RADIUS, 40);
+    reachHaloGeo.rotateX(-Math.PI / 2);
+    const reachHaloMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      transparent: true,
+      opacity: 0.22,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const reachHaloMesh = new THREE.Mesh(reachHaloGeo, reachHaloMat);
+    reachHaloMesh.position.y = 0.04;
+    reachHaloMesh.visible = false;
+    scene.add(reachHaloMesh);
 
     // Map of active player rigs in the scene (keyed by player.id)
     const playerRigs = new Map<string, ArticulatedPlayerRig>();
@@ -256,7 +303,7 @@ export default function VolleyCanvas() {
       }
     });
 
-    // 6. Keyboard & Mouse Input Listeners
+    // 6. Keyboard & Mouse Input Listeners (with 3rd-Person Mouse Look & Aiming)
     const heldKeys = new Set<string>();
     let justPressedJump = false;
     let justPressedAction: HitType | null = null;
@@ -264,6 +311,8 @@ export default function VolleyCanvas() {
     let isMouseDown = false;
     let mouseDownStart = 0;
     let mouseAimNDC = { x: 0, y: 0 };
+    let lookYawOffset = 0;   // -0.65 to +0.65 rad horizontal look offset in 3rd-person
+    let lookPitchOffset = 0; // -0.35 to +0.35 vertical look offset
 
     const isTypingInInput = () => {
       const el = document.activeElement;
@@ -280,6 +329,11 @@ export default function VolleyCanvas() {
         justPressedJump = true;
       } else if (code === 'KeyE') {
         justPressedAction = 'set';
+      } else if (code === 'KeyC') {
+        // Quick toggle camera mode with C key
+        const cur = useGameStore.getState().cameraMode;
+        const next = cur === 'follow' ? 'broadcast' : cur === 'broadcast' ? 'side' : 'follow';
+        useGameStore.getState().setCameraMode(next);
       } else if (code === 'KeyH') {
         useGameStore.getState().toggleDock();
       } else if (code.startsWith('Digit')) {
@@ -302,13 +356,18 @@ export default function VolleyCanvas() {
     };
 
     const onMouseMove = (e: MouseEvent) => {
-      mouseAimNDC.x = (e.clientX / window.innerWidth) * 2 - 1;
-      mouseAimNDC.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      const sens = useGameStore.getState().mouseSensitivity || 1.0;
+      mouseAimNDC.x = ((e.clientX / window.innerWidth) * 2 - 1) * sens;
+      mouseAimNDC.y = (-(e.clientY / window.innerHeight) * 2 + 1) * sens;
+
+      // Smoothly map mouse X/Y to 3rd-person over-the-shoulder look yaw & pitch
+      lookYawOffset = clampAim(mouseAimNDC.x) * 0.58;
+      lookPitchOffset = clampAim(mouseAimNDC.y) * 0.32;
+      activeChargeState.aimLateral = clampAim(mouseAimNDC.x);
     };
 
     const onMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
-      // Ignore clicks on UI buttons/inputs
       const target = e.target as HTMLElement;
       if (target && target !== renderer.domElement) return;
 
@@ -336,7 +395,6 @@ export default function VolleyCanvas() {
     window.addEventListener('mousedown', onMouseDown);
     window.addEventListener('mouseup', onMouseUp);
 
-    // Subscribe to theme/quality changes in Zustand
     const unsubStore = useGameStore.subscribe((state, prevState) => {
       if (state.theme !== prevState.theme || state.quality !== prevState.quality) {
         applyThemeAndQuality();
@@ -372,10 +430,14 @@ export default function VolleyCanvas() {
       frameId = window.setTimeout(poll, 5);
     }
 
-    function syncPlayerModels(activePlayers: PlayerState[], myId: string | null, servingId: string | null, dt: number) {
+    function syncPlayerModels(
+      activePlayers: PlayerState[],
+      myId: string | null,
+      servingId: string | null,
+      dt: number
+    ) {
       const activeIds = new Set(activePlayers.map((p) => p.id));
 
-      // Remove rigs for players who left
       for (const [id, rig] of playerRigs.entries()) {
         if (!activeIds.has(id)) {
           scene.remove(rig.root);
@@ -393,26 +455,29 @@ export default function VolleyCanvas() {
           playerRigs.set(p.id, rig);
         }
 
-        // Determine target position (predicted for local player during active play, interpolated for remote)
         const targetPos =
-          isLocal && socketClient.predictedLocalPos
-            ? socketClient.predictedLocalPos
-            : p.pos;
+          isLocal && socketClient.predictedLocalPos ? socketClient.predictedLocalPos : p.pos;
 
         const prevY = rig.root.position.y;
-        const lerpAlpha = 1 - Math.exp(-(isLocal ? 24 : 15) * dt);
+        const lerpAlpha = 1 - Math.exp(-(isLocal ? 26 : 16) * dt);
         rig.root.position.x = THREE.MathUtils.lerp(rig.root.position.x, targetPos.x, lerpAlpha);
         rig.root.position.y = THREE.MathUtils.lerp(rig.root.position.y, targetPos.y, lerpAlpha);
         rig.root.position.z = THREE.MathUtils.lerp(rig.root.position.z, targetPos.z, lerpAlpha);
 
-        // Spawn sand dust burst when player lands from a jump
         if (prevY > 0.18 && rig.root.position.y <= 0.08) {
           effects.spawnSandBurst(rig.root.position.x, 0.03, rig.root.position.z, 10);
           soundManager.playSandStep();
         }
 
-        // Smooth rotation toward facingAngle
-        const targetRotY = -p.facingAngle;
+        // In 3rd-person mode, subtly orient the local athlete toward their aim angle when idle/jumping
+        let desiredFacing = p.facingAngle;
+        if (isLocal && useGameStore.getState().cameraMode === 'follow' && Math.hypot(p.vel.x, p.vel.z) < 0.25) {
+          const baseDir = p.team === 'A' ? 0 : Math.PI;
+          const sign = p.team === 'A' ? 1 : -1;
+          desiredFacing = baseDir + lookYawOffset * sign * 0.65;
+        }
+
+        const targetRotY = -desiredFacing;
         let diff = targetRotY - rig.bodyPivot.rotation.y;
         while (diff > Math.PI) diff -= Math.PI * 2;
         while (diff < -Math.PI) diff += Math.PI * 2;
@@ -428,7 +493,6 @@ export default function VolleyCanvas() {
           }
         }
 
-        // Check active emote bubble
         if (p.activeEmote && p.activeEmote.expiresAt > Date.now()) {
           if (rig.currentEmoteText !== p.activeEmote.text) {
             rig.currentEmoteText = p.activeEmote.text;
@@ -475,10 +539,12 @@ export default function VolleyCanvas() {
         const me = snap.players.find((p) => p.id === myId);
         const isTeamB = me?.team === 'B';
 
-        let rawW = (heldKeys.has('KeyW') || heldKeys.has('ArrowUp') ? 1 : 0) -
-                   (heldKeys.has('KeyS') || heldKeys.has('ArrowDown') ? 1 : 0);
-        let rawD = (heldKeys.has('KeyD') || heldKeys.has('ArrowRight') ? 1 : 0) -
-                   (heldKeys.has('KeyA') || heldKeys.has('ArrowLeft') ? 1 : 0);
+        let rawW =
+          (heldKeys.has('KeyW') || heldKeys.has('ArrowUp') ? 1 : 0) -
+          (heldKeys.has('KeyS') || heldKeys.has('ArrowDown') ? 1 : 0);
+        let rawD =
+          (heldKeys.has('KeyD') || heldKeys.has('ArrowRight') ? 1 : 0) -
+          (heldKeys.has('KeyA') || heldKeys.has('ArrowLeft') ? 1 : 0);
 
         // Merge mobile touch joystick if active
         if (Math.hypot(store.mobileMove.x, store.mobileMove.z) > 0.05) {
@@ -490,7 +556,8 @@ export default function VolleyCanvas() {
         let moveZ = 0;
 
         if (store.cameraMode === 'follow' && me) {
-          // Camera behind our player facing the net: W moves toward net, D moves to player's right
+          // True Third-Person Controls:
+          // W = Forward toward net, S = Backpedal, A = Strafe Left, D = Strafe Right
           const forwardSign = isTeamB ? -1 : 1;
           moveX = rawW * forwardSign;
           moveZ = rawD * forwardSign;
@@ -506,8 +573,14 @@ export default function VolleyCanvas() {
         const sprint = heldKeys.has('ShiftLeft') || heldKeys.has('ShiftRight') || mobAct.sprint;
         const charge = justReleasedCharge > 0 ? justReleasedCharge : mobAct.charge;
 
-        const aimX = me?.team === 'B' ? -1 : 1;
-        const aimZ = clampAim(mouseAimNDC.x * 1.15 + moveZ * 0.45);
+        const forwardSign = isTeamB ? -1 : 1;
+        // In 3rd person, mouse X steers shot aim left/right relative to the player's view of the net,
+        // and mouse Y controls deep (+1) vs short drop-shot (-0.3) placement!
+        const aimX = forwardSign * (0.65 + clampAim(mouseAimNDC.y) * 0.35);
+        const aimZ =
+          store.cameraMode === 'follow'
+            ? clampAim(mouseAimNDC.x * forwardSign * 0.95 + moveZ * 0.35)
+            : clampAim(mouseAimNDC.x * 1.15 + moveZ * 0.45);
 
         socketClient.sendInput({
           moveX,
@@ -531,9 +604,21 @@ export default function VolleyCanvas() {
 
         // Interpolate Volleyball position & spin
         const ballLerp = 1 - Math.exp(-22 * dt);
-        ballRig.ballMesh.position.x = THREE.MathUtils.lerp(ballRig.ballMesh.position.x, snap.ball.pos.x, ballLerp);
-        ballRig.ballMesh.position.y = THREE.MathUtils.lerp(ballRig.ballMesh.position.y, snap.ball.pos.y, ballLerp);
-        ballRig.ballMesh.position.z = THREE.MathUtils.lerp(ballRig.ballMesh.position.z, snap.ball.pos.z, ballLerp);
+        ballRig.ballMesh.position.x = THREE.MathUtils.lerp(
+          ballRig.ballMesh.position.x,
+          snap.ball.pos.x,
+          ballLerp
+        );
+        ballRig.ballMesh.position.y = THREE.MathUtils.lerp(
+          ballRig.ballMesh.position.y,
+          snap.ball.pos.y,
+          ballLerp
+        );
+        ballRig.ballMesh.position.z = THREE.MathUtils.lerp(
+          ballRig.ballMesh.position.z,
+          snap.ball.pos.z,
+          ballLerp
+        );
 
         ballRig.ballMesh.rotation.x += snap.ball.spin.x * dt + snap.ball.vel.z * dt * 0.8;
         ballRig.ballMesh.rotation.y += snap.ball.spin.y * dt;
@@ -575,35 +660,107 @@ export default function VolleyCanvas() {
           );
         }
 
-        // Camera Positioning (Broadcast / Follow / Side)
-        const me = snap.players.find((p) => p.id === myId);
-        if (store.cameraMode === 'follow' && me) {
+        const me = snap.players.find((p) => p.id === myId) || snap.players[0];
+
+        if (me) {
           const myRig = playerRigs.get(me.id);
           const px = myRig ? myRig.root.position.x : me.pos.x;
+          const py = myRig ? myRig.root.position.y : me.pos.y;
           const pz = myRig ? myRig.root.position.z : me.pos.z;
-          const sign = me.team === 'A' ? -1 : 1;
-          _camTargetPos.set(px + sign * 6.8, 5.2, pz * 0.75);
-          _camLookAt.set(ballRig.ballMesh.position.x * 0.45, 1.6, ballRig.ballMesh.position.z * 0.35);
-        } else if (store.cameraMode === 'side') {
-          _camTargetPos.set(ballRig.ballMesh.position.x * 0.25, 7.2, 13.8);
-          _camLookAt.set(ballRig.ballMesh.position.x * 0.35, 1.5, 0);
-        } else {
-          // Broadcast angle (elevated sideline panorama)
-          _camTargetPos.set(ballRig.ballMesh.position.x * 0.2, 10.6, 15.8);
-          _camLookAt.set(ballRig.ballMesh.position.x * 0.28, 1.4, 0);
+          const forwardSign = me.team === 'A' ? 1 : -1;
+
+          // Update 3rd-Person Aim Arrow & Reach Halo Ring around local player
+          const distToBall = Math.hypot(
+            ballRig.ballMesh.position.x - px,
+            ballRig.ballMesh.position.y - (py + 1.08),
+            ballRig.ballMesh.position.z - pz
+          );
+          const inReach = distToBall <= PLAYER_REACH_RADIUS + 0.18;
+          activeChargeState.ballInReach = inReach;
+
+          reachHaloMesh.visible = true;
+          reachHaloMesh.position.set(px, 0.035, pz);
+          reachHaloMat.color.setHex(inReach ? 0x4ade80 : 0x38bdf8);
+          reachHaloMat.opacity = inReach ? 0.78 : 0.25;
+          const haloScale = inReach ? 1.05 + Math.sin(elapsedTime * 18) * 0.05 : 1.0;
+          reachHaloMesh.scale.setScalar(haloScale);
+
+          // Position Aim Arrow in front of player pointing toward aimed trajectory
+          aimIndicatorGroup.visible = store.cameraMode === 'follow';
+          aimIndicatorGroup.position.set(px + forwardSign * 1.15, 0.04, pz);
+          const baseYaw = me.team === 'A' ? 0 : Math.PI;
+          aimIndicatorGroup.rotation.y = baseYaw - lookYawOffset;
+
+          // Dynamic FOV boost when sprinting, diving, or jumping to spike in 3rd-person
+          const speedXZ = Math.hypot(me.vel.x, me.vel.z);
+          const desiredFov =
+            store.cameraMode === 'follow'
+              ? 54 + (speedXZ > 8 || py > 0.4 ? 5.5 : 0) + (activeChargeState.isCharging ? 3.5 : 0)
+              : 48;
+          if (Math.abs(camera.fov - desiredFov) > 0.1) {
+            camera.fov = THREE.MathUtils.lerp(camera.fov, desiredFov, dt * 8);
+            camera.updateProjectionMatrix();
+          }
+
+          if (store.cameraMode === 'follow') {
+            // TRUE THIRD-PERSON ACTION CAMERA (Close behind the athlete, looking over shoulder toward net & ball)
+            const camDistBehind = 4.35;
+            const camHeight = 2.45 + py * 0.65;
+            const lateralShift = Math.sin(lookYawOffset) * 1.45 * forwardSign;
+
+            _camTargetPos.set(
+              px - forwardSign * camDistBehind,
+              camHeight,
+              pz - lateralShift * 0.4
+            );
+
+            // Look target blends the court ahead of the player + the live ball height + mouse pitch/yaw
+            const lookAheadX = px + forwardSign * 7.5;
+            const lookAheadZ = pz * 0.55 + Math.sin(lookYawOffset) * 4.5 * forwardSign;
+            const ballTrackY = Math.max(1.45, Math.min(4.2, ballRig.ballMesh.position.y * 0.55 + 0.9));
+
+            _camLookAt.set(
+              THREE.MathUtils.lerp(lookAheadX, ballRig.ballMesh.position.x, 0.35),
+              ballTrackY + lookPitchOffset * 1.6,
+              THREE.MathUtils.lerp(lookAheadZ, ballRig.ballMesh.position.z, 0.38)
+            );
+          } else if (store.cameraMode === 'side') {
+            _camTargetPos.set(ballRig.ballMesh.position.x * 0.25, 7.2, 13.8);
+            _camLookAt.set(ballRig.ballMesh.position.x * 0.35, 1.5, 0);
+          } else {
+            // Broadcast angle (elevated sideline panorama)
+            _camTargetPos.set(ballRig.ballMesh.position.x * 0.2, 10.6, 15.8);
+            _camLookAt.set(ballRig.ballMesh.position.x * 0.28, 1.4, 0);
+          }
         }
       } else if (room && room.phase === 'lobby') {
-        // Lobby preview: show connected room players standing in formation on the sand
+        // Lobby preview: frame behind Team A's player in third-person perspective
         syncPlayerModels(room.players, myId, null, dt);
-        ballRig.ballMesh.position.set(0, BALL_RADIUS + Math.abs(Math.sin(elapsedTime * 3)) * 0.6, 0);
+        ballRig.ballMesh.position.set(
+          0,
+          BALL_RADIUS + Math.abs(Math.sin(elapsedTime * 3)) * 0.6,
+          0
+        );
         ballRig.shadowMesh.position.set(0, 0.022, 0);
         ballRig.landingReticle.visible = false;
+        aimIndicatorGroup.visible = false;
+        reachHaloMesh.visible = false;
 
-        _camTargetPos.set(Math.sin(elapsedTime * 0.25) * 4.5, 6.8, 13.5);
-        _camLookAt.set(0, 1.4, 0);
+        const me = room.players.find((p) => p.id === myId) || room.players[0];
+        if (me) {
+          const sign = me.team === 'A' ? 1 : -1;
+          _camTargetPos.set(me.pos.x - sign * 4.8, 2.8, me.pos.z + Math.sin(elapsedTime * 0.4) * 1.2);
+          _camLookAt.set(0, 1.6, 0);
+        } else {
+          _camTargetPos.set(-10.5, 4.2, Math.sin(elapsedTime * 0.3) * 3.5);
+          _camLookAt.set(0, 1.6, 0);
+        }
       } else {
-        // Title Screen Live Exhibition Rally + Atmospheric Camera Orbit
-        const rallyPhase = (elapsedTime * 0.85) % 2; // 0..1 Team A -> B, 1..2 Team B -> A
+        // Title Screen Live Exhibition Rally framed in dynamic Third-Person over-the-shoulder perspective!
+        aimIndicatorGroup.visible = false;
+        reachHaloMesh.visible = false;
+
+        const rallyPhase = (elapsedTime * 0.85) % 2;
         const t = rallyPhase < 1 ? rallyPhase : rallyPhase - 1;
         const fromX = rallyPhase < 1 ? -4.2 : 4.2;
         const toX = rallyPhase < 1 ? 4.2 : -4.2;
@@ -627,8 +784,13 @@ export default function VolleyCanvas() {
 
         syncPlayerModels(demoPlayers, null, null, dt);
 
-        _camTargetPos.set(Math.sin(elapsedTime * 0.18) * 14.5, 7.5, Math.cos(elapsedTime * 0.18) * 15.5);
-        _camLookAt.set(0, 1.8, 0);
+        // Hero Third-Person camera behind Team A player looking over their shoulder across the net
+        _camTargetPos.set(
+          demoPlayers[0].pos.x - 4.4,
+          2.65 + Math.sin(elapsedTime * 0.5) * 0.25,
+          demoPlayers[0].pos.z + Math.cos(elapsedTime * 0.35) * 1.2
+        );
+        _camLookAt.set(bx * 0.5, 1.85, bz * 0.4);
       }
 
       // Apply decaying camera shake on spikes
@@ -640,7 +802,7 @@ export default function VolleyCanvas() {
         cameraShakeIntensity = 0;
       }
 
-      const camDamp = 1 - Math.exp(-6.5 * dt);
+      const camDamp = 1 - Math.exp(-(store.cameraMode === 'follow' ? 11.5 : 6.5) * dt);
       camera.position.lerp(_camTargetPos, camDamp);
       _currentLookAt.lerp(_camLookAt, camDamp);
       camera.lookAt(_currentLookAt);
@@ -681,7 +843,7 @@ export default function VolleyCanvas() {
     <div
       ref={canvasMountRef}
       className="fixed inset-0 w-screen h-screen overflow-hidden z-0"
-      aria-label="Volley Khelo 3D Beach Volleyball Arena"
+      aria-label="Volley Khelo 3D Third-Person Beach Volleyball Arena"
     />
   );
 }
