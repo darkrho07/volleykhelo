@@ -312,10 +312,10 @@ export default function TitleScreenOverlay() {
         <div className="pointer-events-auto px-4 py-2.5 rounded-xl bg-[#0f172a]/90 border border-slate-700/80 text-xs font-medium text-slate-300 tracking-wide">
           <span className="text-amber-400 font-semibold">WASD / Arrows</span> Move ·{' '}
           <span className="text-amber-400 font-semibold">Space</span> Jump ·{' '}
-          <span className="text-amber-400 font-semibold">Click</span> Bump /{' '}
-          <span className="text-amber-400 font-semibold">Hold Click</span> Charged Spike & Serve ·{' '}
-          <span className="text-amber-400 font-semibold">E</span> Set ·{' '}
-          <span className="text-amber-400 font-semibold">Shift</span> Sprint & Dive
+          <span className="text-amber-400 font-semibold">Left Click</span> Instant Hit / Spike / Serve ·{' '}
+          <span className="text-amber-400 font-semibold">E / Right Click</span> Set ·{' '}
+          <span className="text-amber-400 font-semibold">Shift</span> Sprint & Dive ·{' '}
+          <span className="text-amber-400 font-semibold">C</span> Camera
         </div>
       </div>
 

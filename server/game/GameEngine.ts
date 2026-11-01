@@ -68,7 +68,17 @@ export class GameEngine {
   };
 
   private playerInputs = new Map<string, PlayerInput>();
-  private queuedActions = new Map<string, { action: HitType; charge: number; aimX: number; aimZ: number; jump: boolean }>();
+  private queuedActions = new Map<
+    string,
+    {
+      action: HitType | null;
+      charge: number;
+      aimX: number;
+      aimZ: number;
+      jump: boolean;
+      expiresAt: number;
+    }
+  >();
 
   constructor(
     private getSettings: () => RoomSettings,
@@ -80,12 +90,14 @@ export class GameEngine {
     this.playerInputs.set(playerId, input);
     if (input.action || input.jump) {
       const prev = this.queuedActions.get(playerId);
+      const now = Date.now();
       this.queuedActions.set(playerId, {
-        action: input.action || prev?.action || (null as unknown as HitType),
-        charge: Math.max(input.charge || 0, prev?.charge || 0),
+        action: input.action || prev?.action || null,
+        charge: Math.max(input.charge || 0.85, prev?.charge || 0.85),
         aimX: input.aimX,
         aimZ: input.aimZ,
         jump: Boolean(input.jump || prev?.jump),
+        expiresAt: input.action ? now + 280 : prev?.expiresAt || now + 100,
       });
     }
   }
@@ -318,8 +330,14 @@ export class GameEngine {
       const isServer = this.phase === 'serve_wait' && player.id === this.servingPlayerId;
       stepPlayerPhysics(player, input, dt, this.phase === 'serve_wait', isServer);
 
-      // Clear one-shot queued jump/action
-      this.queuedActions.delete(player.id);
+      // Consume one-shot jump, but keep swing action alive during the 280ms swing window until it hits or expires
+      const q = this.queuedActions.get(player.id);
+      if (q) {
+        q.jump = false;
+        if (!q.action || Date.now() > q.expiresAt) {
+          this.queuedActions.delete(player.id);
+        }
+      }
 
       // Check Net Touch Fault if enabled
       if (
@@ -342,18 +360,25 @@ export class GameEngine {
         this.ball.pos.z = player.pos.z;
 
         if (input.action) {
-          this.executePlayerHit(player, 'serve', input.charge, input.aimX, input.aimZ);
+          this.queuedActions.delete(player.id);
+          this.executePlayerHit(player, 'serve', input.charge || 0.85, input.aimX, input.aimZ);
         }
       } else if (this.phase === 'playing' && input.action && player.hitCooldown <= 0) {
-        // Check if ball is within player's reach sphere
-        const playerCenterY = player.pos.y + (player.isDiving ? 0.55 : 1.08);
-        const dist = Math.hypot(
-          this.ball.pos.x - player.pos.x,
-          this.ball.pos.y - playerCenterY,
-          this.ball.pos.z - player.pos.z
-        );
-        if (dist <= PLAYER_REACH_RADIUS) {
-          this.executePlayerHit(player, input.action, input.charge, input.aimX, input.aimZ);
+        // Trigger immediate visual swing animation when player clicks
+        if (player.animTimer <= 0.1) {
+          player.animState = !player.isGrounded ? 'spike' : input.action === 'set' ? 'set' : 'bump';
+          player.animTimer = 0.28;
+        }
+
+        // Check if ball is within player's generous 3D reach volume
+        const playerCenterY = player.pos.y + (player.isDiving ? 0.55 : 1.12);
+        const horizDist = Math.hypot(this.ball.pos.x - player.pos.x, this.ball.pos.z - player.pos.z);
+        const vertDist = Math.abs(this.ball.pos.y - playerCenterY);
+        const dist3D = Math.hypot(horizDist, vertDist * 0.82);
+
+        if (dist3D <= PLAYER_REACH_RADIUS) {
+          this.queuedActions.delete(player.id);
+          this.executePlayerHit(player, input.action, input.charge || 0.85, input.aimX, input.aimZ);
         }
       }
     }

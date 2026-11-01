@@ -283,7 +283,7 @@ export default function GameHUD() {
 
         {latestSnapshot.phase === 'serve_wait' && latestSnapshot.servingPlayerId === mySocketId && (
           <div className="px-5 py-2.5 rounded-xl bg-amber-400 text-slate-950 font-display font-black text-sm shadow-xl">
-            YOUR SERVE! Aim with Mouse · Press Space + Click (or Hold Click for Jump Serve)
+            YOUR SERVE! Aim with Mouse · Left Click to Serve (or Space + Left Click for Jump Serve)
           </div>
         )}
 

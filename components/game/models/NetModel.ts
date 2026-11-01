@@ -42,7 +42,7 @@ function createNetGridTexture(): THREE.CanvasTexture {
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(16, 4);
+  tex.repeat.set(22, 4);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
@@ -73,36 +73,37 @@ export function createVolleyballNetRig(): VolleyballNetRig {
     roughness: 0.35,
   });
 
-  // Left & Right Net Posts (at Z = ±5.1m)
-  [-5.1, 5.1].forEach((zPos) => {
-    const poleGeo = new THREE.CylinderGeometry(0.09, 0.11, 2.75, 16);
+  const postZ = COURT_HALF_WIDTH + 0.85; // ±7.85m for 14m wide court
+  const netSpanZ = COURT_HALF_WIDTH * 2 + 1.2; // 15.2m wide net
+
+  // Left & Right Net Posts
+  [-postZ, postZ].forEach((zPos) => {
+    const poleGeo = new THREE.CylinderGeometry(0.11, 0.13, 2.8, 16);
     const pole = new THREE.Mesh(poleGeo, poleMat);
-    pole.position.set(0, 1.375, zPos);
+    pole.position.set(0, 1.4, zPos);
     pole.castShadow = true;
     pole.receiveShadow = true;
     group.add(pole);
 
     // Protective foam pad around lower post
-    const padGeo = new THREE.CylinderGeometry(0.15, 0.15, 1.85, 16);
+    const padGeo = new THREE.CylinderGeometry(0.17, 0.17, 1.85, 16);
     const pad = new THREE.Mesh(padGeo, padMat);
     pad.position.set(0, 0.925, zPos);
     pad.castShadow = true;
     group.add(pad);
   });
 
-  // Side boundary antennas at Z = ±4.5m
+  // Side boundary antennas at Z = ±COURT_HALF_WIDTH (±7.0m)
   [-COURT_HALF_WIDTH, COURT_HALF_WIDTH].forEach((zPos) => {
-    const antGeo = new THREE.CylinderGeometry(0.022, 0.022, 1.85, 8);
+    const antGeo = new THREE.CylinderGeometry(0.026, 0.026, 1.85, 8);
     const ant = new THREE.Mesh(antGeo, antennaMat);
     ant.position.set(0, NET_HEIGHT_MENS - 0.15, zPos);
     group.add(ant);
   });
 
-  // Subdivided Net Plane along Z axis (width = 9.6m, height = 1.43m)
-  const netSpanZ = 9.6;
+  // Subdivided Net Plane along Z axis
   const netHeightSpan = NET_HEIGHT_MENS - NET_BOTTOM_HEIGHT;
-  const netGeo = new THREE.PlaneGeometry(netSpanZ, netHeightSpan, 32, 10);
-  // Rotate so plane lies in YZ plane at X = 0
+  const netGeo = new THREE.PlaneGeometry(netSpanZ, netHeightSpan, 40, 10);
   netGeo.rotateY(Math.PI / 2);
 
   const netTex = createNetGridTexture();
@@ -124,7 +125,7 @@ export function createVolleyballNetRig(): VolleyballNetRig {
   );
 
   // Top & Bottom Canvas Tapes
-  const tapeGeo = new THREE.BoxGeometry(0.08, 0.1, netSpanZ + 0.2);
+  const tapeGeo = new THREE.BoxGeometry(0.09, 0.11, netSpanZ + 0.25);
   const topTape = new THREE.Mesh(tapeGeo, tapeMat);
   topTape.position.set(0, NET_HEIGHT_MENS, 0);
   topTape.castShadow = true;
@@ -152,7 +153,6 @@ export function createVolleyballNetRig(): VolleyballNetRig {
       this.swayPhase = 0;
     },
     update(dt, targetNetHeight) {
-      // Adjust net height smoothly if room setting changed
       if (Math.abs(this.currentNetHeight - targetNetHeight) > 0.01) {
         this.currentNetHeight += (targetNetHeight - this.currentNetHeight) * Math.min(1, dt * 8);
         const span = this.currentNetHeight - NET_BOTTOM_HEIGHT;
@@ -161,7 +161,6 @@ export function createVolleyballNetRig(): VolleyballNetRig {
         this.topTape.position.y = this.currentNetHeight;
       }
 
-      // Gentle ocean breeze + ball impact spring wave
       this.swayPhase += dt * 18;
       if (this.swayAmplitude > 0.002) {
         this.swayAmplitude *= Math.exp(-dt * 4.2);
@@ -179,12 +178,11 @@ export function createVolleyballNetRig(): VolleyballNetRig {
         const bz = base[idx + 2];
 
         const distFromHit = Math.hypot(bz - this.swayCenterZ, by - this.swayCenterY);
-        const falloff = Math.exp(-distFromHit * 0.65);
-        // Pin left/right edges at posts
-        const edgePin = Math.max(0, 1 - Math.pow(bz / 4.8, 4));
-        const breeze = Math.sin(this.swayPhase * 0.15 + bz * 0.5) * 0.025 * edgePin;
+        const falloff = Math.exp(-distFromHit * 0.55);
+        const edgePin = Math.max(0, 1 - Math.pow(bz / (netSpanZ * 0.5), 4));
+        const breeze = Math.sin(this.swayPhase * 0.15 + bz * 0.4) * 0.025 * edgePin;
         const impactWave =
-          Math.sin(this.swayPhase - distFromHit * 2.2) * this.swayAmplitude * falloff * edgePin;
+          Math.sin(this.swayPhase - distFromHit * 2.0) * this.swayAmplitude * falloff * edgePin;
 
         arr[idx] = breeze + impactWave;
       }

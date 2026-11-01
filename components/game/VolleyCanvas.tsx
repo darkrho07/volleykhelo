@@ -93,17 +93,17 @@ export default function VolleyCanvas() {
     scene.add(hemiLight);
 
     const sunLight = new THREE.DirectionalLight(0xfffbeb, 2.2);
-    sunLight.position.set(16, 26, 18);
+    sunLight.position.set(18, 32, 22);
     sunLight.castShadow = !isSoftwareGl;
     sunLight.shadow.mapSize.width = isSoftwareGl ? 512 : 2048;
     sunLight.shadow.mapSize.height = isSoftwareGl ? 512 : 2048;
-    const d = 15;
+    const d = 22;
     sunLight.shadow.camera.left = -d;
     sunLight.shadow.camera.right = d;
     sunLight.shadow.camera.top = d;
     sunLight.shadow.camera.bottom = -d;
     sunLight.shadow.camera.near = 2;
-    sunLight.shadow.camera.far = 65;
+    sunLight.shadow.camera.far = 85;
     sunLight.shadow.bias = -0.0005;
     sunLight.shadow.normalBias = 0.02;
     scene.add(sunLight);
@@ -367,25 +367,26 @@ export default function VolleyCanvas() {
     };
 
     const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 0) return;
       const target = e.target as HTMLElement;
       if (target && target !== renderer.domElement) return;
 
-      isMouseDown = true;
-      mouseDownStart = performance.now();
-      activeChargeState.isCharging = true;
-      activeChargeState.chargeValue = 0.15;
+      if (e.button === 0) {
+        // Instant hit / spike / serve on Left Click press — no release delay!
+        justPressedAction = 'bump';
+        justReleasedCharge = 0.88;
+      } else if (e.button === 2) {
+        // Optional Right Click for quick Set
+        e.preventDefault();
+        justPressedAction = 'set';
+        justReleasedCharge = 0.6;
+      }
     };
 
-    const onMouseUp = (e: MouseEvent) => {
-      if (e.button !== 0 || !isMouseDown) return;
-      isMouseDown = false;
-      const heldMs = performance.now() - mouseDownStart;
-      const charge = Math.min(1, Math.max(0.2, heldMs / 550));
-      justPressedAction = 'bump'; // Server automatically upgrades high airborne charged bump -> spike, or serve_wait -> serve!
-      justReleasedCharge = charge;
-      activeChargeState.isCharging = false;
-      activeChargeState.chargeValue = 0;
+    const onContextMenu = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target === renderer.domElement) {
+        e.preventDefault();
+      }
     };
 
     window.addEventListener('keydown', onKeyDown);
@@ -393,7 +394,7 @@ export default function VolleyCanvas() {
     window.addEventListener('blur', onWindowBlur);
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('contextmenu', onContextMenu);
 
     const unsubStore = useGameStore.subscribe((state, prevState) => {
       if (state.theme !== prevState.theme || state.quality !== prevState.quality) {
@@ -703,34 +704,34 @@ export default function VolleyCanvas() {
           }
 
           if (store.cameraMode === 'follow') {
-            // TRUE THIRD-PERSON ACTION CAMERA (Close behind the athlete, looking over shoulder toward net & ball)
-            const camDistBehind = 4.35;
-            const camHeight = 2.45 + py * 0.65;
-            const lateralShift = Math.sin(lookYawOffset) * 1.45 * forwardSign;
+            // TRUE THIRD-PERSON ACTION CAMERA (Behind the athlete, looking over shoulder toward net & ball)
+            const camDistBehind = 5.4;
+            const camHeight = 2.85 + py * 0.7;
+            const lateralShift = Math.sin(lookYawOffset) * 1.65 * forwardSign;
 
             _camTargetPos.set(
               px - forwardSign * camDistBehind,
               camHeight,
-              pz - lateralShift * 0.4
+              pz - lateralShift * 0.45
             );
 
             // Look target blends the court ahead of the player + the live ball height + mouse pitch/yaw
-            const lookAheadX = px + forwardSign * 7.5;
-            const lookAheadZ = pz * 0.55 + Math.sin(lookYawOffset) * 4.5 * forwardSign;
-            const ballTrackY = Math.max(1.45, Math.min(4.2, ballRig.ballMesh.position.y * 0.55 + 0.9));
+            const lookAheadX = px + forwardSign * 9.5;
+            const lookAheadZ = pz * 0.55 + Math.sin(lookYawOffset) * 5.8 * forwardSign;
+            const ballTrackY = Math.max(1.55, Math.min(4.8, ballRig.ballMesh.position.y * 0.55 + 1.0));
 
             _camLookAt.set(
-              THREE.MathUtils.lerp(lookAheadX, ballRig.ballMesh.position.x, 0.35),
-              ballTrackY + lookPitchOffset * 1.6,
-              THREE.MathUtils.lerp(lookAheadZ, ballRig.ballMesh.position.z, 0.38)
+              THREE.MathUtils.lerp(lookAheadX, ballRig.ballMesh.position.x, 0.38),
+              ballTrackY + lookPitchOffset * 1.8,
+              THREE.MathUtils.lerp(lookAheadZ, ballRig.ballMesh.position.z, 0.4)
             );
           } else if (store.cameraMode === 'side') {
-            _camTargetPos.set(ballRig.ballMesh.position.x * 0.25, 7.2, 13.8);
-            _camLookAt.set(ballRig.ballMesh.position.x * 0.35, 1.5, 0);
+            _camTargetPos.set(ballRig.ballMesh.position.x * 0.3, 10.2, 20.5);
+            _camLookAt.set(ballRig.ballMesh.position.x * 0.4, 1.6, 0);
           } else {
             // Broadcast angle (elevated sideline panorama)
-            _camTargetPos.set(ballRig.ballMesh.position.x * 0.2, 10.6, 15.8);
-            _camLookAt.set(ballRig.ballMesh.position.x * 0.28, 1.4, 0);
+            _camTargetPos.set(ballRig.ballMesh.position.x * 0.25, 14.8, 23.5);
+            _camLookAt.set(ballRig.ballMesh.position.x * 0.32, 1.5, 0);
           }
         }
       } else if (room && room.phase === 'lobby') {
@@ -833,7 +834,7 @@ export default function VolleyCanvas() {
       window.removeEventListener('blur', onWindowBlur);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('resize', onResize);
       renderer.dispose();
     };

@@ -99,13 +99,13 @@ export function computeBotInput(
   if ((ballOnOurSide || landingOnOurSide) && designatedResponderId === bot.id) {
     // Intercept ball landing spot
     targetX = isTeamA
-      ? Math.max(-COURT_HALF_LENGTH - 1.5, Math.min(-0.65, landing.x))
-      : Math.min(COURT_HALF_LENGTH + 1.5, Math.max(0.65, landing.x));
-    targetZ = Math.max(-COURT_HALF_WIDTH - 1.0, Math.min(COURT_HALF_WIDTH + 1.0, landing.z));
+      ? Math.max(-COURT_HALF_LENGTH - 2.0, Math.min(-0.85, landing.x))
+      : Math.min(COURT_HALF_LENGTH + 2.0, Math.max(0.85, landing.x));
+    targetZ = Math.max(-COURT_HALF_WIDTH - 1.5, Math.min(COURT_HALF_WIDTH + 1.5, landing.z));
   } else if (ballOnOurSide && teammates.length > 1 && ball.touchesThisSide === 1) {
     // Prepare at the net for a set or spike!
-    targetX = isTeamA ? -1.55 : 1.55;
-    targetZ = bot.slotIndex % 2 === 0 ? 1.6 : -1.6;
+    targetX = isTeamA ? -2.3 : 2.3;
+    targetZ = bot.slotIndex % 2 === 0 ? 2.4 : -2.4;
   } else {
     // Return to base defensive formation
     const home = getCourtFormationPosition(bot.team, mode, bot.slotIndex, false);
@@ -117,10 +117,10 @@ export function computeBotInput(
   const dz = targetZ - bot.pos.z;
   const distToTarget = Math.hypot(dx, dz);
 
-  if (distToTarget > 0.22) {
+  if (distToTarget > 0.25) {
     input.moveX = dx / distToTarget;
     input.moveZ = dz / distToTarget;
-    if (distToTarget > 2.8 && (ballOnOurSide || landingOnOurSide)) {
+    if (distToTarget > 3.2 && (ballOnOurSide || landingOnOurSide)) {
       input.sprint = true;
     }
   }
@@ -128,55 +128,51 @@ export function computeBotInput(
   // 3. Check if ball is within reach or approaching spike height
   const dist3D = Math.hypot(
     ball.pos.x - bot.pos.x,
-    ball.pos.y - (bot.pos.y + 1.05),
+    ball.pos.y - (bot.pos.y + 1.1),
     ball.pos.z - bot.pos.z
   );
   const horizontalDist = Math.hypot(ball.pos.x - bot.pos.x, ball.pos.z - bot.pos.z);
 
-  // Avoid double touch unless allowed in 1v1
   const canTouch =
     ball.lastTouchPlayerId !== bot.id || teammates.length === 1;
 
   if (canTouch && ballOnOurSide) {
     // Jump up to spike if the ball is high near the net
     if (
-      horizontalDist < 1.85 &&
+      horizontalDist < 2.25 &&
       ball.pos.y > 1.85 &&
-      ball.pos.y < 3.6 &&
-      Math.abs(bot.pos.x) < 3.6 &&
+      ball.pos.y < 3.9 &&
+      Math.abs(bot.pos.x) < 5.5 &&
       (ball.touchesThisSide >= 1 || teammates.length === 1)
     ) {
       input.jump = true;
     }
 
-    if (dist3D <= PLAYER_REACH_RADIUS + 0.12) {
-      // Choose bump, set, or spike based on team touch count and court position
+    if (dist3D <= PLAYER_REACH_RADIUS + 0.1) {
       const nextTouch = ball.lastTouchTeam === bot.team ? ball.touchesThisSide + 1 : 1;
       input.aimX = dirToNet;
-      // Aim toward open corner of opponent court
       input.aimZ = Math.sin(serverTick * 0.23 + bot.jerseyNumber) * 0.82;
 
-      if (!bot.isGrounded && bot.pos.y > 0.45 && Math.abs(bot.pos.x) < 4.2) {
+      if (!bot.isGrounded && bot.pos.y > 0.45 && Math.abs(bot.pos.x) < 6.0) {
         input.action = 'spike';
-        input.charge = 0.85;
+        input.charge = 0.82;
       } else if (nextTouch === 1 && teammates.length > 1) {
         input.action = 'bump';
-        input.charge = 0.4;
+        input.charge = 0.45;
       } else if (nextTouch === 2 && teammates.length > 1) {
         input.action = 'set';
-        input.charge = 0.5;
+        input.charge = 0.55;
       } else {
         input.action = 'bump';
         input.charge = 0.65;
       }
     } else if (
-      horizontalDist < 2.9 &&
-      horizontalDist > 1.4 &&
-      ball.pos.y < 1.2 &&
+      horizontalDist < 3.5 &&
+      horizontalDist > 1.6 &&
+      ball.pos.y < 1.25 &&
       ball.vel.y < -1.0 &&
       bot.isGrounded
     ) {
-      // Emergency dive save!
       input.sprint = true;
       input.action = 'bump';
     }
